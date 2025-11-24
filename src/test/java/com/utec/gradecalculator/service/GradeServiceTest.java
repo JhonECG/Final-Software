@@ -15,11 +15,10 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// Volvemos al contexto completo de Spring. Esto soluciona la inyección de List<T>.
+// Usa el contexto completo de Spring para inyectar el Service y sus dependencias (Policies)
 @SpringBootTest
 class GradeServiceTest {
 
-    // Usamos @Autowired para que Spring inyecte el Service con sus dependencias reales
     @Autowired
     private GradeService gradeService;
 
@@ -58,17 +57,19 @@ class GradeServiceTest {
         // 15.5 (promedio) + 0 (bono) = 15.5
         assertEquals(15.50, result.getFinalGrade(), 0.001);
         assertEquals("APROBADO", result.getStatus());
-        assertTrue(result.getCalculationDetail().contains("Sin bono extra"));
+        // 🛑 CORRECCIÓN FINAL: Verifica la frase exacta de la política
+        assertTrue(result.getCalculationDetail().contains("Política no activa"));
     }
 
-    // --- 2. Caso Sin Asistencia Mínima ---
+    // --- 2. Caso Sin Asistencia Mínima (DPI) ---
 
     @Test
     void shouldReturnZeroGrade_WhenAttendanceIsFalse() {
-        // Aunque tenga un promedio alto, la asistencia es falsa
+        // Aunque tenga un promedio alto, la asistencia es falsa.
+        // La prueba verifica que la lógica de "break" haya evitado el bono.
         List<ExamDTO> exams = List.of(new ExamDTO(20.0, 1.0));
         CalculationRequestDTO request = new CalculationRequestDTO(
-                "1003", exams, false, true); // Asistencia: false
+                "1003", exams, false, true); // Asistencia: false, Bono: true
 
         CalculationResultDTO result = gradeService.calculateFinalGrade(request);
 
@@ -76,6 +77,7 @@ class GradeServiceTest {
         assertEquals(GradeConstants.DPI_PENALTY_SCORE, result.getFinalGrade(), 0.001);
         assertEquals("DESAPROBADO", result.getStatus());
         assertTrue(result.getCalculationDetail().contains("PENALIZACIÓN ASISTENCIA"));
+        // El test implícitamente verifica que el bono NO se aplicó (1.0 vs 0.0)
     }
 
     // --- 3. Casos Borde y Validaciones ---
@@ -89,7 +91,7 @@ class GradeServiceTest {
 
         CalculationRequestDTO request = new CalculationRequestDTO("1004", exams, true, true);
 
-        // Evaluación: Se lanza la excepción personalizada (ValidationException)
+        // Evaluación: Debe lanzar la excepción personalizada
         assertThrows(ValidationException.class, () -> gradeService.calculateFinalGrade(request));
     }
 

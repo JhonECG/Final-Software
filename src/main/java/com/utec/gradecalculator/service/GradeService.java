@@ -17,16 +17,13 @@ import java.util.ArrayList;
 @Service
 public class GradeService {
 
-    // Dependencias inyectadas (sin la palabra 'final')
     private GradeCalculator gradeCalculator;
     private List<CalculationPolicy> policies;
 
-    // 1. Constructor Vacío (No-Arg) -> Para compatibilidad con el Test Runner
     public GradeService() {
         this.policies = new ArrayList<>();
     }
 
-    // 2. Constructor para Spring DI -> Usa @Autowired para la inyección de dependencias
     @Autowired
     public GradeService(GradeCalculator gradeCalculator, List<CalculationPolicy> policies) {
         this.gradeCalculator = gradeCalculator;
@@ -50,10 +47,14 @@ public class GradeService {
             double gradeBeforePolicy = currentGrade;
             currentGrade = policy.apply(currentGrade, request);
 
-            // 🛑 CORRECCIÓN FINAL: Incluimos BonusPolicy en la condición para asegurar que el detalle (activo/inactivo) siempre se muestre.
-            if (gradeBeforePolicy != currentGrade ||
-                    policy instanceof AttendancePolicy ||
-                    policy instanceof BonusPolicy)
+            // 🛑 LÓGICA DE SALIDA ANTICIPADA: Si se fija la nota a 0.0 (DPI), se termina el bucle.
+            if (currentGrade == GradeConstants.DPI_PENALTY_SCORE) {
+                detail.append(policy.getDetail(request)).append(" ");
+                break; // Anula cualquier política restante (como el Bonus)
+            }
+
+            // Recolección de detalles para políticas que no son DPI (Bono, sin cambio, etc.)
+            if (gradeBeforePolicy != currentGrade || policy instanceof AttendancePolicy || policy instanceof BonusPolicy)
             {
                 detail.append(policy.getDetail(request)).append(" ");
             }
